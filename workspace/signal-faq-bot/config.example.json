@@ -1,0 +1,25 @@
+{
+  "signal": {
+    "account": "+491701234567",
+    "groupId": "oT+8X2/put-the-real-base64-group-id-here==",
+    "cliCommand": "docker run --rm -v /full/path/to/signal-state:/root/.local/share/signal-cli signal-image",
+    "pollIntervalSeconds": 10
+  },
+  "llm": {
+    "provider": "OLLAMA",
+    "model": "glm-4.7-flash:latest",
+    "ollamaBaseUrl": "http://localhost:11434",
+    "apfelCommand": "apfel"
+  },
+  "paths": {
+    "faq": "FAQ.md",
+    "calendarCommand": "docker run --rm signal-faq-bot-calendar",
+    "promptTemplate": "templates/prompt.txt",
+    "answerTemplate": "templates/answer.txt",
+    "state": "state.json"
+  },
+  "web": {
+    "enabled": true,
+    "port": 8080
+  }
+}

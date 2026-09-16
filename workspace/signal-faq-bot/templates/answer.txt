@@ -1,0 +1,12 @@
+Hier ist der nette KI bot programmiert von Falko. Der läuft auf einem computer lokal in der Lehrter Straße. Ich habe mir deine Nachricht durchgelesen und eine Antwort formuliert. Ich kenne den Kalender und unsere FAQs. Damit bekommen wir schon echt viele Fragen beantwortet:
+
+{{answer}}
+
+—
+🤖 Automatische Antwort von 35services. Schreib mir gerne direkt wie die Frage dir geholfen hat.
+
+
+Links:
+* https://35services.de/termine-oeffnungszeiten/oeffnungszeiten/
+* https://35services.de/faq-haeufig-gestellte-fragen-und-antworten/
+* dieses tool: https://github.com/35services/openclaw/tree/main/workspace/signal-faq-bot

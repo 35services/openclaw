@@ -1,0 +1,18 @@
+.gradle/
+.kotlin/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.idea/
+*.iml
+.DS_Store
+
+# Machine-local JDK path override (see README "Building" section)
+gradle.properties
+
+# Runtime state & local secrets — never committed
+config.json
+state.json
+signal-state/
+
+# Python venv for fetch-calendar.py's dependencies (see README "Calendar script")
+.venv/

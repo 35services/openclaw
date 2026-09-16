@@ -1,0 +1,12 @@
+# Wraps fetch-calendar.py with its Python dependencies, so the bot doesn't
+# need Python or pip set up on the host at all — see README "Calendar script".
+#
+# Build:  docker build -f Dockerfile.calendar -t signal-faq-bot-calendar .
+# Run:    docker run --rm signal-faq-bot-calendar
+FROM python:3.12-slim
+
+WORKDIR /app
+RUN pip install --no-cache-dir icalendar recurring_ical_events
+COPY fetch-calendar.py .
+
+ENTRYPOINT ["python3", "fetch-calendar.py"]
