@@ -1,0 +1,11 @@
+# One message per line. Blank lines and lines starting with # are ignored.
+#
+# These are standalone questions that ARE questions, but practical/hands-on
+# ones the FAQ or calendar can't answer — the bot should redirect instead of
+# guessing (question=YES, practical=YES). Run with:
+#   ./gradlew run --args="benchmark"
+#
+# Add more real examples below as you collect them from the actual group.
+Wie bekomme ich das Tretlager aus meinem Fahrrad raus?
+Wie kann ich einen Kurzschluss in meiner Lötstelle beheben?
+Wie baue ich am besten ein Regal aus Restholz?

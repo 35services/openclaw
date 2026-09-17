@@ -33,8 +33,18 @@ class InMemoryStateStore : StateStore {
         )
     }
 
+    override fun markRedirected(id: String, text: String) {
+        val existing = records[id] ?: return
+        records[id] = existing.copy(status = MessageStatus.REDIRECTED, answerText = text, updatedAt = System.currentTimeMillis())
+    }
+
     override fun markFailed(id: String, error: String) {
         val existing = records[id] ?: return
         records[id] = existing.copy(status = MessageStatus.FAILED, error = error, updatedAt = System.currentTimeMillis())
+    }
+
+    override fun markSkipped(id: String, reason: String) {
+        val existing = records[id] ?: return
+        records[id] = existing.copy(status = MessageStatus.SKIPPED, error = reason, updatedAt = System.currentTimeMillis())
     }
 }

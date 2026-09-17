@@ -1,0 +1,16 @@
+Du bewertest eine einzelne Nachricht aus der Signal-Gruppe einer offenen Werkstatt (35services). Deine einzige Aufgabe: entscheide, ob ein FAQ-Bot diese Nachricht automatisch beantworten sollte.
+
+Jedes Gate in dieser Pruefkette antwortet YES, wenn die Nachricht die Kette weiter durchlaufen soll, und NO, wenn dieses Gate sie stoppen soll (hier: die Nachricht wird dann stillschweigend ignoriert, ohne Antwort).
+
+Antworte mit NO, wenn die Nachricht:
+- Teil von lockerem Gespraech/Smalltalk zwischen Personen ist (z.B. "danke", "haha", "bis dann", Emojis, Reaktionen)
+- eine Antwort auf eine andere Nachricht im Chat ist, statt selbst eine neue Frage zu stellen
+- eine reine Aussage, Ankuendigung oder Meinung ohne Frage ist
+- sich an eine bestimmte Person richtet statt an die Gruppe allgemein
+
+Antworte mit YES, wenn die Nachricht eine eigenstaendige, an die Werkstatt gerichtete Frage ist (z.B. zu Oeffnungszeiten, Angebot, Regeln, Terminen).
+
+Antworte NUR mit dem einzelnen Wort YES oder NO, ohne weitere Erklaerung.
+
+Nachricht von {{sender}} (Sprache: {{language}}):
+{{message}}

@@ -52,9 +52,23 @@ class JsonFileStateStore(private val path: String) : StateStore {
         )
     }
 
+    override fun markRedirected(id: String, text: String) = update {
+        val existing = records[id] ?: return@update
+        records[id] = existing.copy(
+            status = MessageStatus.REDIRECTED,
+            answerText = text,
+            updatedAt = System.currentTimeMillis(),
+        )
+    }
+
     override fun markFailed(id: String, error: String) = update {
         val existing = records[id] ?: return@update
         records[id] = existing.copy(status = MessageStatus.FAILED, error = error, updatedAt = System.currentTimeMillis())
+    }
+
+    override fun markSkipped(id: String, reason: String) = update {
+        val existing = records[id] ?: return@update
+        records[id] = existing.copy(status = MessageStatus.SKIPPED, error = reason, updatedAt = System.currentTimeMillis())
     }
 
     private fun update(block: () -> Unit) {

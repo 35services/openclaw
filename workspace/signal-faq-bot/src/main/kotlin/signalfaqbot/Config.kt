@@ -11,6 +11,13 @@ data class SignalConfig(
     /** Shell prefix that runs `signal-cli`, e.g. a `docker run ...` line. See README. */
     val cliCommand: String,
     val pollIntervalSeconds: Long = 10,
+    /**
+     * Phone numbers (E.164, e.g. "+491701234567") of organization members.
+     * Messages from these senders are never auto-answered — assumed to be
+     * internal chat/replies between people who already know the FAQ, not
+     * questions for the bot.
+     */
+    val memberAccounts: List<String> = emptyList(),
 )
 
 @Serializable
@@ -32,6 +39,13 @@ data class PathsConfig(
     val calendarCommand: String = "docker run --rm signal-faq-bot-calendar",
     val promptTemplate: String = "templates/prompt.txt",
     val answerTemplate: String = "templates/answer.txt",
+    /**
+     * Directory scanned for the gate chain: every `classify*.txt` file here,
+     * sorted alphabetically, becomes one [signalfaqbot.core.ClassificationGate]
+     * (see [signalfaqbot.core.GateDiscovery]). A `classify_X.txt` pairs with
+     * `answer_X.txt` in the same directory if present.
+     */
+    val templatesDir: String = "templates",
     val state: String = "state.json",
 )
 

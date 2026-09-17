@@ -19,8 +19,45 @@ long-running Kotlin service that does the same job unattended.
 - Every reply is sent as a **direct message to the sender's phone number**,
   never back into the group.
 
+### Filtering: who gets an automated answer
+Not every message in the group is a question for the bot — people chat with
+each other, reply to someone else's message, or ask something the FAQ/calendar
+just can't answer. Before a message reaches the answer pipeline:
+1. **Member skip-list** (`signal.memberAccounts` in config) — messages from
+   these phone numbers are never auto-answered at all. They're assumed to be
+   internal chat between people who already know the FAQ, not questions for
+   the bot. This check is free (no LLM call).
+2. **Gate chain** — everyone else's message runs through every
+   `templates/classify*.txt` file, in alphabetical filename order. Each gate
+   asks the LLM a plain yes/no *"should this message keep moving through the
+   chain?"*. The first `NO` stops it:
+   - If a matching `templates/answer<suffix>.txt` exists (e.g.
+     `classify_practical.txt` <-> `answer_practical.txt`), that **static**
+     message is sent instead of a generated answer.
+   - If no matching answer file exists (e.g. `classify_0_is_question.txt`),
+     the message is just skipped — no reply at all.
+   - A message that gets a `YES` from every gate proceeds to the full
+     FAQ/calendar answer pipeline below.
+
+   Shipped gates, in the order they run:
+   - `classify_0_is_question.txt` — is this a standalone question at all, as
+     opposed to chit-chat/a reply? (no matching answer file -> silent skip)
+   - `classify_practical.txt` — is this answerable from FAQ/calendar, as
+     opposed to a practical how-to/repair question? (pairs with
+     `answer_practical.txt` -> static redirect message)
+
+   Adding a new gate is just adding a `templates/classify_<name>.txt` file
+   (and, optionally, a matching `templates/answer_<name>.txt`) — no code
+   change needed. See "Testing the gate chain" below.
+
+Messages stopped by either the member skip-list or a gate are recorded as
+`SKIPPED`/`REDIRECTED` in the state file (with which gate stopped them) —
+same restart-safety guarantee as answered/failed messages, they're just
+never picked up again.
+
 ### Answering a message
-For each new message, gather three inputs and combine them into one LLM prompt:
+For each message that passes every gate, gather three inputs and combine
+them into one LLM prompt:
 1. **The incoming message** (text + sender number + language it's written in).
 2. **FAQ.md** — the static list of standard questions/answers.
 3. **Live calendar** — next ~2 weeks of events, fetched fresh per message
@@ -55,11 +92,11 @@ use, no multi-turn back-and-forth. One prompt in, one answer out.
 
 ### State / processing log
 - A state file (successor to `last-answered.json`) tracks, per incoming
-  message: message id/timestamp, sender, and a status — e.g.
-  `received → processing → answered` (or `failed`). Since LLM processing can
-  take a noticeable amount of time, a message must be marked `processing`
-  *before* the LLM call starts, so a crash/restart mid-processing doesn't
-  cause it to be silently dropped or double-answered.
+  message: message id/timestamp, sender, and a status —
+  `received → processing → answered` / `failed` / `skipped`. Since LLM
+  processing can take a noticeable amount of time, a message must be marked
+  `processing` *before* the LLM call starts, so a crash/restart mid-processing
+  doesn't cause it to be silently dropped or double-answered.
 - On startup, the bot resumes from this file rather than re-answering
   everything from scratch.
 
@@ -93,9 +130,15 @@ tiny **server** for the dashboard.
   so no local Python setup is required. Reimplementing its ICS/recurrence
   logic in Kotlin would just be a second copy to keep in sync.
 - **Templating**: dumb `{{placeholder}}` substitution in plain `.txt` files
-  under `templates/` — no templating library. `templates/prompt.txt` builds
-  the LLM prompt; `templates/answer.txt` wraps the LLM's raw output into the
-  message actually sent.
+  under `templates/` — no templating library. `templates/classify*.txt` files
+  are the gate chain (see "Filtering" above); `templates/prompt.txt` builds
+  the answer prompt; `templates/answer.txt` wraps the LLM's raw output into
+  the message actually sent.
+- **Filtering**: `GateDiscovery` scans `paths.templatesDir` for
+  `classify*.txt` files and pairs each with its `answer*.txt` (if any) into a
+  `ClassificationGate`; `GatePipeline` runs them in order, using the same
+  `LlmClient`/provider as answering. Gates `AnswerService` from inside
+  `BotLoop`, alongside the `signal.memberAccounts` skip-list.
 - **LLM**: `LlmClient` interface with `OllamaLlmClient` (HTTP, `POST /api/generate`,
   `stream: false`, `think: false`) and `ApfelLlmClient` (shells out to `apfel`),
   chosen via `llm.provider` in config.
@@ -118,10 +161,38 @@ docker build -f Dockerfile.calendar -t signal-faq-bot-calendar .
 
 ./gradlew build                            # compiles + runs the test suite
 ./gradlew run --args="ask \"Wann habt ihr auf?\" --sender +491701234567"
+./gradlew run --args='classify "haha bis morgen!"'   # dry-run the whole gate chain
 ./gradlew run --args="run"                 # starts polling + the dashboard on :8080
 ```
 
-See `Cli.kt`'s usage text (`./gradlew run` with no args) for all flags.
+`ask` always answers (it skips every gate — it's for testing the answer
+pipeline itself, `templates/prompt.txt`/`templates/answer.txt`, or trying a
+different model). See `Cli.kt`'s usage text (`./gradlew run` with no args)
+for all flags.
+
+### Testing the gate chain
+- `./gradlew run --args='classify "<message>"'` runs the **whole chain** and
+  prints what the bot would do (which gate stopped it and how, or that it
+  would answer) — the go-to command when tuning a gate's wording.
+- `./gradlew run --args='<gate-name> "<message>"'` runs **one gate** in
+  isolation and prints `YES`/`NO`. `<gate-name>` is any
+  `templates/classify*.txt` filename minus `.txt`, e.g.
+  `./gradlew run --args='classify_practical "Wie loete ich das?"'`.
+- `./gradlew run --args="benchmark"` runs the whole chain against
+  `benchmarks/answerable.txt` (expected to pass every gate) and
+  `benchmarks/practical.txt` (expected to get redirected) using the real
+  configured LLM, and reports a PASS/FAIL per line plus a summary — the tool
+  for judging prompt/model changes against a fixed set of real examples
+  rather than eyeballing one message at a time. Add real messages you've
+  collected from the group to those two files (one per line, `#` for
+  comments) to grow the benchmark over time.
+
+Note: don't run `ask`/`classify`/`benchmark`/a single-gate command from a
+second terminal *while* `run` is active against the same Ollama instance —
+they're separate OS processes hitting the same local LLM, and `BotLoop`
+itself is already strictly sequential (one message, one LLM call at a time;
+see `CLAUDE.md`), but two separate processes racing for Ollama isn't
+something the code coordinates.
 
 ## Future: signal-cli daemon (JSON-RPC)
 
@@ -147,3 +218,19 @@ a client that talks JSON-RPC/WebSocket instead of shelling out per poll —
   message with a new id, it would be answered twice.
 - The dashboard is unauthenticated — fine on `localhost`, not meant for
   exposure beyond that.
+- Every eligible message costs one LLM call per gate it passes, plus one more
+  to answer — fine for one workshop's group traffic; if that ever matters, a
+  cheaper/smaller model just for the gate chain would be the first thing to
+  try.
+- Each gate sees only the message text in isolation, no surrounding chat
+  context — it can't tell a reply from a fresh question if the reply happens
+  to read like one on its own. The benchmark command (see above) is how you
+  find out how often that actually happens with real examples.
+- Gate accuracy is inherently probabilistic (same model, same prompt, can
+  answer differently run to run) — confirmed directly while building this:
+  `classify_0_is_question` occasionally misclassified a clearly-standalone
+  practical question as "not a question" and silently skipped it instead of
+  reaching `classify_practical`'s redirect. Widening
+  `benchmarks/answerable.txt`/`benchmarks/practical.txt` with real examples
+  and rerunning `benchmark` is the way to quantify and improve this, not a
+  one-off prompt tweak.

@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
  * or answering it twice on restart.
  */
 @Serializable
-enum class MessageStatus { RECEIVED, PROCESSING, ANSWERED, FAILED }
+enum class MessageStatus { RECEIVED, PROCESSING, ANSWERED, REDIRECTED, FAILED, SKIPPED }
 
 /** One row of the state file: a message plus where it currently stands. */
 @Serializable
@@ -18,6 +18,8 @@ data class MessageRecord(
     val status: MessageStatus,
     /** Epoch millis of the last status change. */
     val updatedAt: Long,
+    /** The text actually sent, for ANSWERED (LLM-crafted) and REDIRECTED (static) alike. */
     val answerText: String? = null,
+    /** Why a FAILED or SKIPPED message ended up that way. */
     val error: String? = null,
 )

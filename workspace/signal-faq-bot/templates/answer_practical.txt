@@ -1,0 +1,10 @@
+Hier ist der nette KI bot programmiert von Falko. Sieht so aus, als hättest du eine praktische Frage (z.B. wie man etwas repariert, baut oder einstellt). Das können wir dir am besten direkt zeigen statt per FAQ zu erklären.
+
+Komm gerne zu einer Öffnungszeit vorbei, oder schreib kurz in die Gruppe – vielleicht kann dir dort direkt jemand helfen.
+
+—
+🤖 Automatische Antwort von 35services.
+
+Links:
+* https://35services.de/termine-oeffnungszeiten/oeffnungszeiten/
+* dieses tool: https://github.com/35services/openclaw/tree/main/workspace/signal-faq-bot

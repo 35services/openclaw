@@ -3,7 +3,8 @@
     "account": "+491701234567",
     "groupId": "oT+8X2/put-the-real-base64-group-id-here==",
     "cliCommand": "docker run --rm -v /full/path/to/signal-state:/root/.local/share/signal-cli signal-image",
-    "pollIntervalSeconds": 10
+    "pollIntervalSeconds": 10,
+    "memberAccounts": ["+491701111111", "+491702222222"]
   },
   "llm": {
     "provider": "OLLAMA",
@@ -16,6 +17,7 @@
     "calendarCommand": "docker run --rm signal-faq-bot-calendar",
     "promptTemplate": "templates/prompt.txt",
     "answerTemplate": "templates/answer.txt",
+    "templatesDir": "templates",
     "state": "state.json"
   },
   "web": {

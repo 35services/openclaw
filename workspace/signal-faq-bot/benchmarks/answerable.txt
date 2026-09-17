@@ -1,0 +1,11 @@
+# One message per line. Blank lines and lines starting with # are ignored.
+#
+# These are "positive" cases: standalone questions that the bot SHOULD answer
+# from FAQ.md / the calendar (question=YES, practical=NO). Run with:
+#   ./gradlew run --args="benchmark"
+#
+# Add more real examples below as you collect them from the actual group.
+Wann habt ihr offen?
+Was kostet die Nutzung der Werkstatt?
+Gibt es diese Woche einen Workshop?
+Kann ich Metall schweißen bei euch?

@@ -29,16 +29,16 @@ import java.time.format.DateTimeFormatter
 
 /**
  * A read-only status page: what's currently queued/processing, and a history
- * of answered (and failed) messages. Renders straight from [StateStore] on
- * every request — no separate database, the state file already is the
- * source of truth.
+ * of everything else (answered, redirected, failed, skipped). Renders
+ * straight from [StateStore] on every request — no separate database, the
+ * state file already is the source of truth.
  */
 fun Application.dashboardModule(stateStore: StateStore) {
     routing {
         get("/") {
             val records = stateStore.all().sortedByDescending { it.updatedAt }
             val queue = records.filter { it.status == MessageStatus.RECEIVED || it.status == MessageStatus.PROCESSING }
-            val history = records.filter { it.status == MessageStatus.ANSWERED || it.status == MessageStatus.FAILED }
+            val history = records.filter { it.status != MessageStatus.RECEIVED && it.status != MessageStatus.PROCESSING }
 
             call.respondHtml {
                 head {
@@ -54,7 +54,9 @@ fun Application.dashboardModule(stateStore: StateStore) {
                                 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
                                 .status-RECEIVED, .status-PROCESSING { color: #a66a00; }
                                 .status-ANSWERED { color: #1a7f37; }
+                                .status-REDIRECTED { color: #0a6cb8; }
                                 .status-FAILED { color: #c00; }
+                                .status-SKIPPED { color: #888; }
                                 """.trimIndent(),
                             )
                         }
@@ -70,7 +72,7 @@ fun Application.dashboardModule(stateStore: StateStore) {
                         renderTable(queue)
                     }
 
-                    h2 { +"Answered / Failed (${history.size})" }
+                    h2 { +"History (${history.size})" }
                     if (history.isEmpty()) {
                         p { +"No messages processed yet." }
                     } else {
@@ -91,7 +93,7 @@ private fun kotlinx.html.FlowContent.renderTable(records: List<MessageRecord>, s
             th { +"Sender" }
             th { +"Message" }
             th { +"Status" }
-            if (showAnswer) th { +"Answer / Error" }
+            if (showAnswer) th { +"Answer / Detail" }
         }
         for (record in records) {
             tr {

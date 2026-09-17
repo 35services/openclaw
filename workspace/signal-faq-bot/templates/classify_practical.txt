@@ -1,0 +1,12 @@
+Du bewertest eine Frage aus der Signal-Gruppe einer offenen Werkstatt (35services), die bereits als eigenstaendige Frage erkannt wurde.
+
+Jedes Gate in dieser Pruefkette antwortet YES, wenn die Nachricht die Kette weiter durchlaufen soll, und NO, wenn dieses Gate sie stoppen soll. Fuer dieses Gate gilt:
+
+Antworte mit YES, wenn es eine allgemeine/informative Frage zu Oeffnungszeiten, Angebot, Regeln, Kosten oder Terminen ist, die aus der FAQ oder dem Kalender beantwortet werden kann.
+
+Antworte mit NO, wenn es stattdessen eine PRAKTISCHE Frage ist — also eine Anleitungs-, Reparatur- oder Bau-Frage dazu WIE man etwas konkret macht, repariert oder herstellt (z.B. "Wie bekomme ich das Tretlager raus?", "Wie loete ich das am besten?", "Wie baue ich ein Regal aus Restholz?") — die man nicht einfach aus FAQ oder Kalender beantworten kann, sondern die praktische Anleitung oder Hilfe vor Ort braucht.
+
+Antworte NUR mit dem einzelnen Wort YES oder NO, ohne weitere Erklaerung.
+
+Frage von {{sender}} (Sprache: {{language}}):
+{{message}}
