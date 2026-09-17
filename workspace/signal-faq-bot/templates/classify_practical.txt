@@ -6,6 +6,12 @@ Antworte mit YES, wenn es eine allgemeine/informative Frage zu Oeffnungszeiten, 
 
 Antworte mit NO, wenn es stattdessen eine PRAKTISCHE Frage ist — also eine Anleitungs-, Reparatur- oder Bau-Frage dazu WIE man etwas konkret macht, repariert oder herstellt (z.B. "Wie bekomme ich das Tretlager raus?", "Wie loete ich das am besten?", "Wie baue ich ein Regal aus Restholz?") — die man nicht einfach aus FAQ oder Kalender beantworten kann, sondern die praktische Anleitung oder Hilfe vor Ort braucht.
 
+Zusaetzlicher Kontext zu {{sender}}:
+- Zeit seit Beitritt zur Gruppe: {{time_since_joined}}
+- Eigene Nachrichten in den letzten 24 Stunden: {{messages_last_24h}}
+
+Erfahrungsgemaess stellen Mitglieder, die kurz nach ihrem Beitritt eine Frage stellen, eher allgemeine Fragen (Oeffnungszeiten, Angebot, Kosten), die aus FAQ oder Kalender beantwortbar sind, statt praktischer Anleitungsfragen. Nutze das nur als schwachen zusaetzlichen Hinweis — der Inhalt der Frage selbst zaehlt mehr als dieser Kontext.
+
 Antworte NUR mit dem einzelnen Wort YES oder NO, ohne weitere Erklaerung.
 
 Frage von {{sender}} (Sprache: {{language}}):

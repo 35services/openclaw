@@ -1,8 +1,14 @@
 package signalfaqbot.cli
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import signalfaqbot.Config
 import signalfaqbot.calendar.ProcessCalendarProvider
+import signalfaqbot.chatanalysis.AnalysisStatus
+import signalfaqbot.chatanalysis.ChatAnalysisStore
+import signalfaqbot.chatanalysis.ChatAnalyzer
+import signalfaqbot.chatimport.ChatExportParser
+import signalfaqbot.chatimport.ParsedChat
 import signalfaqbot.core.AnswerService
 import signalfaqbot.core.BotLoop
 import signalfaqbot.core.GateDiscovery
@@ -18,6 +24,8 @@ import signalfaqbot.template.FileBackedAnswerRenderer
 import signalfaqbot.template.FileBackedPromptRenderer
 import signalfaqbot.web.startDashboard
 import java.io.File
+
+private val prettyJson = Json { prettyPrint = true; encodeDefaults = true }
 
 /**
  * Subcommands:
@@ -40,6 +48,8 @@ object Cli {
             "ask" -> ask(args.drop(1))
             "classify" -> classify(args.drop(1))
             "benchmark" -> benchmark(args.drop(1))
+            "parse-chat" -> parseChat(args.drop(1))
+            "analyze-chat" -> analyzeChat(args.drop(1))
             null -> printUsage()
             else -> classifyGate(command, args.drop(1))
         }
@@ -70,6 +80,24 @@ object Cli {
                   Run the full gate chain against benchmarks/answerable.txt
                   and benchmarks/practical.txt using the real configured LLM,
                   and report accuracy.
+
+              parse-chat <input.txt> [--output <path>]
+                  Parse a Signal Desktop chat export (plain-text copy/paste)
+                  into JSON: messages (sender, text, timestamp) and join/leave
+                  events. Defaults --output to "<input.txt>.json". Prints a
+                  summary and any parsing anomalies found (see
+                  ChatExportParser's doc comment for the format it expects).
+
+              analyze-chat <chat.json> [--config <path>] [--output <path>]
+                  Replay the bot's real decision flow (member skip-list, gate
+                  chain, AnswerService) against every message in a
+                  parse-chat JSON file, using the real configured LLM.
+                  Nothing is ever sent anywhere. Defaults --output to
+                  "<chat.json>.analysis.json". Can take a while for a real
+                  export (one gate-chain run, and sometimes one answer call,
+                  per message) — progress is saved after every message, so
+                  killing it and running the same command again resumes
+                  instead of restarting or re-spending LLM calls.
 
             Defaults: --config config.json, --sender +000000000, --language de
             """.trimIndent(),
@@ -196,6 +224,50 @@ object Cli {
         GateResult.Passed -> "PASSED"
         is GateResult.Skipped -> "SKIPPED(${result.gateName})"
         is GateResult.Redirected -> "REDIRECTED(${result.gateName})"
+    }
+
+    private fun parseChat(args: List<String>) {
+        require(args.isNotEmpty()) { "Missing \"<input.txt>\" argument. See usage below.\n" + usageText() }
+        val inputPath = args[0]
+        val outputPath = flag(args, "--output") ?: "$inputPath.json"
+
+        val parsed = ChatExportParser.parse(File(inputPath).readLines())
+        File(outputPath).writeText(prettyJson.encodeToString(ParsedChat.serializer(), parsed))
+
+        println("Parsed ${parsed.messages.size} message(s) and ${parsed.events.size} event(s) from $inputPath -> $outputPath")
+        if (parsed.anomalies.isNotEmpty()) {
+            println("${parsed.anomalies.size} anomalies:")
+            parsed.anomalies.forEach { println("  - $it") }
+        }
+    }
+
+    private fun analyzeChat(args: List<String>) = runBlocking {
+        require(args.isNotEmpty()) { "Missing \"<chat.json>\" argument. See usage below.\n" + usageText() }
+        val config = Config.load(flag(args, "--config") ?: "config.json")
+        val chatPath = args[0]
+        val outputPath = flag(args, "--output") ?: "$chatPath.analysis.json"
+
+        val chat = prettyJson.decodeFromString(ParsedChat.serializer(), File(chatPath).readText())
+        val llmClient = LlmClientFactory.from(config.llm)
+        val store = ChatAnalysisStore(outputPath)
+        val analyzer = ChatAnalyzer(
+            gatePipeline = buildGatePipeline(config, llmClient),
+            answerService = buildAnswerService(config, llmClient),
+            store = store,
+            memberAccounts = config.signal.memberAccounts.toSet(),
+        )
+
+        val alreadyDone = chat.messages.indices.count { store.isDone(it) }
+        println(
+            "Analyzing ${chat.messages.size} message(s) from $chatPath -> $outputPath" +
+                if (alreadyDone > 0) " ($alreadyDone already done, resuming)" else "",
+        )
+        analyzer.analyzeAll(chat.messages, chat.events)
+
+        val results = store.all()
+        val byStatus = results.groupingBy { it.status }.eachCount()
+        println("Done. ${results.size}/${chat.messages.size} analyzed:")
+        AnalysisStatus.entries.forEach { status -> println("  $status: ${byStatus[status] ?: 0}") }
     }
 
     private fun loadBenchmarkFixture(path: String): List<String> {

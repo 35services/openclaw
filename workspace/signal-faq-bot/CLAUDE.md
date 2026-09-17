@@ -169,6 +169,96 @@ per-message loop.
   `benchmark` exists — don't chase single-example failures as if they were
   reproducible bugs; widen the fixture files and look at the pass rate.
 
+## The chat export parser is a separate, offline tool
+
+`chatimport/ChatExportParser.kt` (`./gradlew run --args='parse-chat <file>'`)
+is unrelated to the live bot's runtime — it turns a Signal Desktop chat
+export (plain-text copy/paste from the conversation view) into JSON, for a
+future tool that will run the bot's logic against real historical messages
+and analyze how people reacted. It doesn't touch `AnswerService`/`BotLoop`/
+config; treat it as its own subsystem.
+
+The export format is **not documented anywhere** — everything the parser
+knows was reverse engineered from one real 1150-line export
+(`reference/chat.txt`, gitignored — it's a real chat log with real names).
+Gotchas hit doing that, so the next person doesn't re-discover them:
+- **Some structural lines are wrapped in invisible Private Use Area
+  characters** (U+E000–U+F8FF) — observed on collapsed `"N group updates"`
+  lines, presumably left behind by Signal Desktop's copy/paste for what's a
+  clickable UI element in the app. Without stripping them first, `"2 group
+  updates"` silently fails to match `groupUpdatesRegex` and gets treated as
+  a malformed message instead. `parse()` strips this whole Unicode block
+  from every line before any pattern matching runs — don't remove that step
+  without re-checking against a real export.
+- **The avatar-initials artifact is not always uppercase** — a contact
+  without a profile photo gets a short initials line before their name
+  (`"V"`, `"SA"`, `"Sh"`), but it can be lowercase too (`"c"` for "carlo").
+  Match on `\p{L}` (any letter), not `\p{Lu}`. The safety net against
+  swallowing real short message text (like a literal `"OK"`) is unrelated to
+  case: it's that the *next* line must be a real sender header.
+- **Signal omits the header entirely for consecutive messages from the same
+  sender** sent close together — not just an edge case, it happens
+  repeatedly in the real export. A message block with no header, directly
+  following another message (no date header or event line between them),
+  inherits the previous message's sender rather than being flagged as an
+  anomaly. It's *not* inherited across a date header/event, since every
+  observed case of a new day always re-shows the header.
+- **A date header's weekday can match more than one year** — see
+  `inferStartYear`'s doc comment; this isn't a rare coincidence; e.g. Apr 4
+  lands on a Saturday in both 2020 and 2026 because leap days only shift
+  Jan/Feb. Picking the smallest matching year is wrong; `referenceYear`
+  (defaults to the real current year) breaks the tie towards "now", since a
+  chat export is essentially always recent, never from 6 years ago.
+- **A link preview's own lines (title, description, domain, its own
+  unrelated date) are indistinguishable from typed message text** once
+  copy-pasted — there's no marker separating them. Left as-is rather than
+  guessed apart; still shows up as a `sender: null` anomaly today (see
+  `reference/chat.txt.json`'s "POM - Muovia.com" case) since there's no
+  header before it either. Don't try to special-case link-preview shapes
+  without a second real example to generalize from.
+- Always re-run `./gradlew run --args='parse-chat reference/chat.txt'` after
+  touching this parser and read the anomaly count/list — it's the fastest
+  signal for "did this change actually help or just move the bug."
+
+## `analyze-chat` and `chat-viewer` build on the parser
+
+`ChatAnalyzer`/`ChatAnalysisStore`/`analyze-chat` (see `chatanalysis/`)
+replay a `parse-chat` export through the *real* `GatePipeline`/`AnswerService`
+— same resumable-JSON-file pattern as `JsonFileStateStore`, but simpler: no
+`PROCESSING` marker needed, since nothing it does is externally visible (see
+`ChatAnalysisStore`'s doc comment). `chat-viewer` is a separate Gradle
+subproject (own `build.gradle.kts`, Compose Multiplatform 1.7.1 pinned to
+match Kotlin 2.0.21 exactly) that live-polls an `analyze-chat` output file by
+`lastModified()` — no dependency on the bot module, it keeps its own copy of
+the wire-format data classes (`ChatData.kt`/`Analysis.kt`), same rationale as
+the analyzer's own JSON.
+
+- **`FileBackedMessageTemplateRenderer` re-reads its template file from disk
+  on *every* render call, not once at startup.** Editing a `classify*.txt`
+  file while `run`/`analyze-chat` is already live takes effect on the very
+  next gate call — including breaking it: adding a new `{{placeholder}}` to
+  a template without also shipping the renderer code that populates it sends
+  the literal `{{placeholder}}` text to the LLM, silently, since
+  `TemplateRenderer` leaves unknown placeholders untouched rather than
+  erroring. Hit for real: editing `classify_practical.txt` to add
+  `{{time_since_joined}}` while an old `analyze-chat` run was still live
+  against the old jar would have corrupted every subsequent prompt — killed
+  and restarted it after rebuilding instead. Always rebuild *before* editing
+  a live template a running process still reads, or kill the process first.
+- **Compose Desktop can be screenshotted headlessly**, no window, display,
+  or macOS Screen Recording permission needed:
+  `androidx.compose.ui.renderComposeScene(width, height, density) { content }`
+  (top-level function, already in the `compose.desktop.currentOs` artifact —
+  no extra dependency) rasterizes a composable straight to an
+  `org.jetbrains.skia.Image` via Skia's off-screen software path;
+  `image.encodeToData(EncodedImageFormat.PNG)!!.bytes` gives you PNG bytes to
+  write directly. This isn't in the public Compose Multiplatform docs as of
+  1.7.1 — found by inspecting the `ui-desktop` jar's classes
+  (`ImageComposeScene`/`ImageComposeScene_skikoMainKt`) since `screencapture`
+  fails in a sandboxed/CI environment with no screen-recording permission.
+  See `chat-viewer/src/main/kotlin/signalfaqbot/chatviewer/Screenshot.kt`
+  and the `:chat-viewer:screenshot` Gradle task.
+
 ## Testing paradigm
 
 - Unit tests use hand-written fakes/lambdas, not a mocking library (see
@@ -194,6 +284,12 @@ per-message loop.
   does for the state file.
 - `JsonFileStateStoreTest` writes to a real temp file and reopens a fresh
   `JsonFileStateStore` instance to prove restart-safety end to end.
+- `ChatExportParserTest` covers the chat export parser purely with synthetic
+  in-memory line lists (no dependency on `reference/chat.txt`, which isn't
+  committed) — one test per line shape, plus the year-inference ambiguity
+  and its `referenceYear` tie-break, the December-to-January rollover, and
+  each "no header" case (start of transcript vs. inherited from the
+  previous message).
 
 ## Manual testing
 

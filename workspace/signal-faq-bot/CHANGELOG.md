@@ -53,3 +53,27 @@ grouped under `[Unreleased]` until the bot is deployed and tagged.
 - `benchmarks/answerable.txt` and `benchmarks/practical.txt`: seed fixture
   files (a few starter examples each) for the `benchmark` CLI command, to be
   grown with real messages collected from the group.
+- `ChatExportParser` (`./gradlew run --args='parse-chat <file>'`): parses a
+  Signal Desktop chat export (plain-text copy/paste) into JSON — messages
+  (sender, text, timestamp, reactions, quote-reply info) and join/leave/
+  group-update events, with a printed anomaly list for anything it couldn't
+  confidently resolve. A separate, offline tool laying groundwork for
+  running the bot's gate/answer logic against real historical messages.
+- `analyze-chat` (`./gradlew run --args='analyze-chat <chat.json>'`): replays
+  every message from a `parse-chat` export through the bot's real gate chain
+  and `AnswerService`, recording each message's per-gate trace and outcome
+  (ANSWERED/REDIRECTED/SKIPPED/FAILED) to a resumable JSON file — a killed or
+  crashed run picks back up with zero wasted LLM calls on already-analyzed
+  messages.
+- Two contextual signals now feed every classifier prompt (`{{time_since_joined}}`,
+  `{{messages_last_24h}}`, see `MessageContext`), used by `analyze-chat` to
+  give the LLM a weak signal that a message from a recently-joined or
+  newly-active sender is more likely a general FAQ question than a practical
+  how-to one.
+- `chat-viewer`: a standalone Compose Desktop app (`./gradlew :chat-viewer:run --args="<chat.json>"`)
+  to browse a parsed chat export, live-polling the matching `analyze-chat`
+  output file so per-message gate/answer results fill in as a background
+  analysis run progresses. `./gradlew :chat-viewer:screenshot` renders it
+  against mock data to `chat-viewer/screenshot.png` headlessly (Compose's
+  off-screen Skia rasterizer, no display or screen-recording permission
+  needed) — see `README.md`.

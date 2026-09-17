@@ -22,7 +22,17 @@ class FileBackedMessageTemplateRenderer(private val templatePath: String) : Mess
                 "message" to message.text,
                 "sender" to message.sender,
                 "language" to message.language,
+                "time_since_joined" to formatMinutesSinceJoined(message.minutesSinceJoined),
+                "messages_last_24h" to message.messagesLast24h.toString(),
             ),
         )
     }
+}
+
+/** Renders [minutes] as short German prose, e.g. for `{{time_since_joined}}` — "unbekannt" when there's no join event to compare against. */
+private fun formatMinutesSinceJoined(minutes: Long?): String = when {
+    minutes == null -> "unbekannt"
+    minutes < 60 -> "weniger als 1 Stunde"
+    minutes < 60 * 24 -> "${minutes / 60} Stunde(n)"
+    else -> "${minutes / (60 * 24)} Tag(e)"
 }

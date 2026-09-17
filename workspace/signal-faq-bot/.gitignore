@@ -14,5 +14,8 @@ config.json
 state.json
 signal-state/
 
+# Local reference material (e.g. real chat exports) — never committed
+reference/
+
 # Python venv for fetch-calendar.py's dependencies (see README "Calendar script")
 .venv/

@@ -10,6 +10,10 @@ Antworte mit NO, wenn die Nachricht:
 
 Antworte mit YES, wenn die Nachricht eine eigenstaendige, an die Werkstatt gerichtete Frage ist (z.B. zu Oeffnungszeiten, Angebot, Regeln, Terminen).
 
+Zusaetzlicher Kontext zu {{sender}} (nur zur Orientierung, nicht ausschlaggebend):
+- Zeit seit Beitritt zur Gruppe: {{time_since_joined}}
+- Eigene Nachrichten in den letzten 24 Stunden: {{messages_last_24h}}
+
 Antworte NUR mit dem einzelnen Wort YES oder NO, ohne weitere Erklaerung.
 
 Nachricht von {{sender}} (Sprache: {{language}}):

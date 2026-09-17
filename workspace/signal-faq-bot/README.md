@@ -194,6 +194,41 @@ itself is already strictly sequential (one message, one LLM call at a time;
 see `CLAUDE.md`), but two separate processes racing for Ollama isn't
 something the code coordinates.
 
+## Chat export analysis (separate, work-in-progress tool)
+
+A second, unrelated tool is starting to grow alongside the bot: parsing a
+Signal Desktop chat export (plain-text copy/paste from the conversation
+view) into JSON, so a future pass can run the bot's gate/answer logic
+against real historical messages and see how people actually reacted.
+
+```bash
+./gradlew run --args='parse-chat reference/chat.txt'   # -> reference/chat.txt.json
+```
+
+`reference/` is gitignored — real chat exports contain real names and
+messages and should never be committed. `ChatExportParser` (see its class
+doc and `CLAUDE.md`'s "chat export parser" section) reverse-engineers the
+export's line shapes: messages (sender, text, timestamp, reactions,
+quote-reply info), and join/leave/group-update events. Read the printed
+anomaly list after running it — some ambiguity in the source format (e.g. a
+link preview's own lines vs. typed text) is fundamentally unresolvable from
+plain text alone and is called out rather than guessed at.
+
+Once you have a `parse-chat` export, `analyze-chat` replays every message
+through the real gate chain and `AnswerService`, and `chat-viewer` gives you
+a Compose Desktop UI to browse the results as they land:
+
+```bash
+./gradlew run --args='analyze-chat reference/chat.txt.json'   # resumable; can take a while
+./gradlew :chat-viewer:run --args="reference/chat.txt.json"   # live-polls the analysis file above
+```
+
+![Chat viewer with mock data](chat-viewer/screenshot.png)
+
+(That screenshot is invented sample data, not a real export — rendered
+headlessly via `./gradlew :chat-viewer:screenshot`, see that task and
+`Screenshot.kt` for how to regenerate it after a UI change.)
+
 ## Future: signal-cli daemon (JSON-RPC)
 
 Not built — polling `receive` is simpler and good enough for one group's

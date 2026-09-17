@@ -12,4 +12,14 @@ data class IncomingMessage(
     val timestamp: Long,
     /** BCP-47-ish hint ("de" or "en"); defaults to "de" since that's the group's default. */
     val language: String = "de",
+    /**
+     * Minutes between the sender joining the group and this message, or null
+     * if unknown (the live bot doesn't track this; offline chat analysis
+     * does via [signalfaqbot.chatanalysis.MessageContext]). Exposed to
+     * classifier prompts as `{{time_since_joined}}` — see
+     * [signalfaqbot.template.FileBackedMessageTemplateRenderer].
+     */
+    val minutesSinceJoined: Long? = null,
+    /** How many other messages this sender sent in the 24h before this one. Exposed as `{{messages_last_24h}}`. */
+    val messagesLast24h: Int = 0,
 )
